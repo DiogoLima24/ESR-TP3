@@ -56,29 +56,27 @@ def worker(ip,):
     while(True):
         data = conn.recv(512)
         tipo = pp.getTipo(data)
-
+        print(tipo)
         if(tipo==0): # Se recebeu pedido de caminho mais curto
             for fluxo in tabela_rotas.keys():
-                msg = pp.criaPacoteTipo1(fluxo,tabela_rotas[fluxo][1]+1)
+                msg = pp.criaPacoteTipo1(fluxo,tabela_rotas[fluxo][1]-1)
                 conn.send(msg)
         elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
             fluxo = int(data[1])
             metrica = int(data[2])
 
             if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
-                # @TODO: Atualizar tabela
+                msg = pp.criaPacoteTipo2(fluxo,metrica)  # Confirmar que quer rota
+                conn.send(msg)
                 metrica = metrica + 1
-                print("Vou Atualizar Tabela de Rotas")
                 for vizinho in vizinhos.keys(): # Avisar outros vizinhos
-                    if (vizinho != local_ip):
+                    if (vizinho != ip):
                         msg = pp.criaPacoteTipo1(fluxo,metrica)
-                        vizinhos[outros_vizinhos].send(msg)
-            else: # Se não é melhor que o atual
-                # @TODO: Avisar que não quer rota
-                print("Nao Vou Atualizar")
-        elif (tipo==2): # Se recebeu informação que o vizinho nao quer aquela rota
-            # @TODO: Remover vizinho das rotas
-            print("Remover vizinho da tabela de rotas")
+                        vizinhos[vizinho].send(msg)
+
+        elif (tipo==2): # Se recebeu confirmação da rota
+            # @TODO: Atualizar tabela de rotas
+            print("Atualizar Tabela")
 
 def main():
     global PORT
@@ -88,6 +86,8 @@ def main():
     sys.argv.pop(0)
     local_ip = sys.argv.pop(0)
     ips_vizinhos = sys.argv
+
+    tabela_rotas[1] = ("blabla",13,{})
 
     # Escutar em TCP em paralelo
     thread_tcp = threading.Thread(target=espera_conexoes, args=())
