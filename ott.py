@@ -1,9 +1,12 @@
 import socket
 import threading
 import sys
+import MyProtocolParser as pp
 
 PORT = 8080
 vizinhos = { } # { ip : conexao }
+
+tabela_rotas = {}  # { FLUXO : ( ORIGEM , METRICA , { DESTINO : ESTADO } ) } }
 
 local_ip = ''
 
@@ -27,18 +30,17 @@ def espera_conexoes():
     for th in threads:
         th.join()
 
-
-
 def conecta_vizinhos(ips,):
     global PORT
     global vizinhos
+    global tabela_rotas
     threads = []
     for ip in ips:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip,PORT))
 
-        msg = "ola"
-        s.send(msg.encode())
+        msg = pp.criaPacoteTipo1(1,2)
+        s.send(msg)
 
         vizinhos[ip] = s
         threads.append(threading.Thread(target=worker, args=(ip,)))
@@ -47,18 +49,22 @@ def conecta_vizinhos(ips,):
     for th in threads:
         th.join()
 
-
-
 def worker(ip,):
     conn = vizinhos[ip]
     while(True):
         data = conn.recv(512)
+        tipo = pp.getTipo(data)
 
-        data = data.decode()
-        print(data)
-        if (data=="ola"):
-            msg="recebi"
-            conn.send(msg.encode('utf-8'))
+        if (tipo==1): # Se recebeu caminho mais curto de um vizinho
+            fluxo = int(data[1])
+            metrica = int(data[2])
+
+            if(tabela_rotas[fluxo][1] > metrica):
+                # @TODO: Atualizar tabela e notificar vizinhos
+                metrica = metrica + 1
+                
+
+
 
 def main():
     global PORT
