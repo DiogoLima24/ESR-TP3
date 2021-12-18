@@ -4,18 +4,20 @@ def criaPacoteTipo0(): # Pedir Caminhos Mais Curtos
     tipo = bytes([0])
     return tipo
 
-def criaPacoteTipo1(fluxo,metrica): # Enviar Caminho Mais Curto
+def criaPacoteTipo1(fluxo,metrica,ip): # Enviar Caminho Mais Curto
     tipo = bytes([1])
-    f = bytes([fluxo])
-    m = bytes([metrica])
-    pacote = tipo + f + m
+    fluxo = bytes([fluxo])
+    metrica = bytes([metrica])
+    ip = bytes(ip)
+    pacote = tipo + fluxo + metrica + ip
     return pacote
 
-def criaPacoteTipo2(fluxo,metrica): # Confirmar melhor rota
+def criaPacoteTipo2(fluxo,metrica,ip): # Confirmar melhor rota
     tipo = bytes([2])
-    f = bytes([fluxo])
-    m = bytes([metrica])
-    pacote = tipo + f + m
+    fluxo = bytes([fluxo])
+    metrica = bytes([metrica])
+    ip = bytes(ip)
+    pacote = tipo + fluxo + metrica +ip
     return pacote
 
 # Extrair Conteudo dos Pacotes

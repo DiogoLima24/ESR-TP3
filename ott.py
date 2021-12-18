@@ -66,12 +66,13 @@ def worker(ip,):
             fluxo = int(data[1])
             metrica = int(data[2])
             if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
-                msg = pp.criaPacoteTipo2(fluxo,metrica)  # Confirmar que quer rota
+                ip_origem="alguma coisa"
+                msg = pp.criaPacoteTipo2(fluxo,metrica,ip_origem)  # Confirmar que quer rota
                 conn.send(msg)
                 metrica = metrica + 1
                 for vizinho in vizinhos.keys(): # Avisar outros vizinhos
                     if (vizinho != ip):
-                        msg = pp.criaPacoteTipo1(fluxo,metrica)
+                        msg = pp.criaPacoteTipo1(fluxo,metrica,ip)
                         vizinhos[vizinho].send(msg)
 
         elif (tipo==2): # Se recebeu confirmação da rota
