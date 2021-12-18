@@ -51,6 +51,7 @@ def conecta_vizinhos(ips,): # Conetar aos vizinhos que recebo por argumento
 def worker(ip,):
     global local_ip
     global vizinhos
+    global tabela_rotas
 
     conn = vizinhos[ip]
     while(True):
@@ -63,10 +64,9 @@ def worker(ip,):
                 conn.send(msg)
 
         elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
-            fluxo = int(data[1])
-            metrica = int(data[2])
+            fluxo ,metrica, ip_origem = extraiPacoteTipo1ou2(data)
+
             if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
-                ip_origem="alguma coisa"
                 msg = pp.criaPacoteTipo2(fluxo,metrica,ip_origem)  # Confirmar que quer rota
                 conn.send(msg)
                 metrica = metrica + 1
@@ -76,8 +76,10 @@ def worker(ip,):
                         vizinhos[vizinho].send(msg)
 
         elif (tipo==2): # Se recebeu confirmação da rota
-            # @TODO: Atualizar tabela de rotas
-            print("Atualizar Tabela")
+            fluxo, metrica, ip_origem = extraiPacoteTipo1ou2(data)
+            aux = tabela_rotas[fluxo][2]
+            aux[ip] = False
+            tabela_rotas[fluxo] = (ip_origem,metrica,aux)
 
 def main():
     global PORT
