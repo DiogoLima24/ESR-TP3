@@ -3,14 +3,13 @@ import threading
 import sys
 import MyProtocolParser as pp
 
+# Variaveis Globais
 PORT = 8080
 vizinhos = { } # { ip : conexao }
-
 tabela_rotas = {}  # { FLUXO : ( ORIGEM , METRICA , { DESTINO : ESTADO } ) } }
-
 local_ip = ''
 
-def espera_conexoes():
+def espera_conexoes(): # Esperar por que outros nodos se conectem a mim
     global local_ip
     global vizinhos
     print(local_ip)
@@ -30,7 +29,7 @@ def espera_conexoes():
     for th in threads:
         th.join()
 
-def conecta_vizinhos(ips,):
+def conecta_vizinhos(ips,): # Conetar aos vizinhos que recebo por argumento
     global PORT
     global vizinhos
     global tabela_rotas
@@ -39,7 +38,7 @@ def conecta_vizinhos(ips,):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip,PORT))
 
-        msg = pp.criaPacoteTipo1(1,2)
+        msg = pp.criaPacoteTipo0()
         s.send(msg)
 
         vizinhos[ip] = s
@@ -50,25 +49,42 @@ def conecta_vizinhos(ips,):
         th.join()
 
 def worker(ip,):
+    global local_ip
+    global vizinhos
+
     conn = vizinhos[ip]
     while(True):
         data = conn.recv(512)
         tipo = pp.getTipo(data)
 
-        if (tipo==1): # Se recebeu caminho mais curto de um vizinho
+        if(tipo==0): # Se recebeu pedido de caminho mais curto
+            for fluxo in tabela_rotas.keys():
+                msg = pp.criaPacoteTipo1(fluxo,tabela_rotas[fluxo][1]+1)
+                conn.send(msg)
+        elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
             fluxo = int(data[1])
             metrica = int(data[2])
 
-            if(tabela_rotas[fluxo][1] > metrica):
-                # @TODO: Atualizar tabela e notificar vizinhos
+            if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
+                # @TODO: Atualizar tabela
                 metrica = metrica + 1
-                
-
-
+                print("Vou Atualizar Tabela de Rotas")
+                for vizinho in vizinhos.keys(): # Avisar outros vizinhos
+                    if (vizinho != local_ip):
+                        msg = pp.criaPacoteTipo1(fluxo,metrica)
+                        vizinhos[outros_vizinhos].send(msg)
+            else: # Se não é melhor que o atual
+                # @TODO: Avisar que não quer rota
+                print("Nao Vou Atualizar")
+        elif (tipo==2): # Se recebeu informação que o vizinho nao quer aquela rota
+            # @TODO: Remover vizinho das rotas
+            print("Remover vizinho da tabela de rotas")
 
 def main():
     global PORT
     global local_ip
+    global tabela_rotas
+
     sys.argv.pop(0)
     local_ip = sys.argv.pop(0)
     ips_vizinhos = sys.argv
@@ -85,4 +101,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
