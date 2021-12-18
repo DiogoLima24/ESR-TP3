@@ -61,11 +61,10 @@ def worker(ip,):
             for fluxo in tabela_rotas.keys():
                 msg = pp.criaPacoteTipo1(fluxo,tabela_rotas[fluxo][1]-1)
                 conn.send(msg)
-                
+
         elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
             fluxo = int(data[1])
             metrica = int(data[2])
-
             if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
                 msg = pp.criaPacoteTipo2(fluxo,metrica)  # Confirmar que quer rota
                 conn.send(msg)
