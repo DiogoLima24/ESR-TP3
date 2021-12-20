@@ -8,7 +8,7 @@ def criaPacoteTipo1(fluxo,metrica,ip): # Enviar Caminho Mais Curto
     tipo = bytes([1])
     fluxo = bytes([fluxo])
     metrica = bytes([metrica])
-    ip = bytes(ip)
+    ip = bytes(ip,'utf-8')
     pacote = tipo + fluxo + metrica + ip
     return pacote
 
