@@ -65,21 +65,21 @@ def worker(ip,):
                 print("[0] Recebi pedido de caminhos mais curtos de: " , ip)
                 for fluxo in tabela_rotas.keys():
                     metrica = tabela_rotas[fluxo][1]
-                    ip_origem = tabela_rotas[fluxo][0]
-                    msg = pp.criaPacoteTipo1(fluxo,metrica,ip_origem)
+                    msg = pp.criaPacoteTipo1(fluxo,metrica)
                     print("Enviar rota do fluxo ",fluxo," para: ",ip)
                     conn.send(msg)
 
             elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
-                fluxo ,metrica, ip_origem = pp.extraiPacoteTipo1ou2(data)
+                fluxo ,metrica = pp.extraiPacoteTipo1ou2(data)
                 print("[1] Recebi caminho mais curto do fluxo ",fluxo," com métrica " ,metrica, " de: ",ip)
 
                 if(not(fluxo in tabela_rotas) or tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
                     print("Caminho é ótimo, enviar confirmação.")
-                    msg = pp.criaPacoteTipo2(fluxo,metrica,ip_origem)  # Confirmar que quer rota
+                    msg = pp.criaPacoteTipo2(fluxo,metrica)  # Confirmar que quer rota
                     conn.send(msg)
                     tabela_rotas[fluxo] = (ip,metrica,{}) # Registar Rota
                     print("Tabela Rotas: ",tabela_rotas)
+
                     for vizinho in vizinhos.keys(): # Avisar outros vizinhos
                         if (vizinho != ip):
                             print("Enviar rota do fluxo ", fluxo , " para: " , vizinho)
@@ -88,10 +88,8 @@ def worker(ip,):
 
             elif (tipo==2): # Se recebeu confirmação da rota
                 print("[2] Recebi confirmação do caminho mais curto")
-                fluxo, metrica, ip_origem = pp.extraiPacoteTipo1ou2(data)
-                aux = tabela_rotas[fluxo][2]
-                aux[ip] = False
-                tabela_rotas[fluxo] = (ip_origem,metrica,aux)
+                fluxo, metrica = pp.extraiPacoteTipo1ou2(data)
+                aux = tabela_rotas[fluxo][2][ip] = False
                 print("Tabela Rotas: ", tabela_rotas)
 
             elif (tipo==3): # Se recebeu alteração do estado da rota
@@ -99,7 +97,7 @@ def worker(ip,):
                 tabela_rotas[fluxo][2][ip] = estado
                 print("Tabela Rotas: ",tabela_rotas)
                 msg = pp.criaPacoteTipo3(fluxo,estado)
-                
+
                 next = tabela_rotas[fluxo][0]
                 vizinhos[next].send(msg)
 
