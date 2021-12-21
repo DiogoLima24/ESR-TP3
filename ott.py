@@ -23,9 +23,10 @@ def espera_conexoes(): # Esperar por que outros nodos se conectem a mim
     threads = []
     while(True):
         conexao, addr = socket_tcp.accept()
-        vizinhos[addr] = conexao
+        ip = addr[0]
+        vizinhos[ip] = conexao
 
-        threads.append(threading.Thread(target=worker, args=(addr,)))
+        threads.append(threading.Thread(target=worker, args=(ip,)))
         threads[-1].start()
 
     for th in threads:
@@ -78,11 +79,11 @@ def worker(ip,):
                     msg = pp.criaPacoteTipo2(fluxo,metrica,ip_origem)  # Confirmar que quer rota
                     conn.send(msg)
                     tabela_rotas[fluxo] = (ip,metrica,{}) # Registar Rota
-
+                    print("Tabela Rotas: ",tabela_rotas)
                     for vizinho in vizinhos.keys(): # Avisar outros vizinhos
                         if (vizinho != ip):
                             print("Enviar rota do fluxo ", fluxo , " para: " , vizinho)
-                            msg = pp.criaPacoteTipo1(fluxo,(metrica+1),local_ip)
+                            msg = pp.criaPacoteTipo1(fluxo,(metrica+1),ip)
                             vizinhos[vizinho].send(msg)
 
             elif (tipo==2): # Se recebeu confirmação da rota
@@ -91,24 +92,29 @@ def worker(ip,):
                 aux = tabela_rotas[fluxo][2]
                 aux[ip] = False
                 tabela_rotas[fluxo] = (ip_origem,metrica,aux)
+                print("Tabela Rotas: ", tabela_rotas)
 
             elif (tipo==3): # Se recebeu alteração do estado da rota
                 fluxo, estado = pp.extraiPacoteTipo3(data)
                 tabela_rotas[fluxo][2][ip] = estado
+                print("Tabela Rotas: ",tabela_rotas)
                 msg = pp.criaPacoteTipo3(fluxo,estado)
+                
                 next = tabela_rotas[fluxo][0]
                 vizinhos[next].send(msg)
 
-        except socket.error: # Se vizinho "morreu"
-            print(1)
+        except: # Se vizinho "morreu"
             vizinhos.pop(ip)  # Remover da tabela de vizinhos
-            for fluxo in tabela_rotas: # Para cada Fluxo
+            fluxos = list(tabela_rotas.keys())
+            for fluxo in fluxos: # Para cada Fluxo
                 if (tabela_rotas[fluxo][0] == ip): # Verificar se fluxo vem do vizinho que "morreu"
+                    tabela_rotas.pop(fluxo)
                     for vizinho in vizinhos: # Pedir caminhos mais curtos aos restantes vizinhos
                         msg = pp.criaPacoteTipo0()
                         vizinhos[vizinho].send(msg)
                 elif(ip in tabela_rotas[fluxo][2]):
                     tabela_rotas[fluxo][2].pop(ip)
+            print("Tabela Rotas: ",tabela_rotas)
             break # Parar Worker
 
 def server():
