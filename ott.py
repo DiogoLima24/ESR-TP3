@@ -3,6 +3,7 @@ import threading
 import sys
 import MyProtocolParser as pp
 import time
+import re
 
 # Variaveis Globais
 PORT = 8080
@@ -59,40 +60,64 @@ def worker(ip,):
         try:
             data = conn.recv(512)
             tipo = pp.getTipo(data)
-            print(tipo)
             if(tipo==0): # Se recebeu pedido de caminho mais curto
+                print("[0] Recebi pedido de caminhos mais curtos de: " , ip)
                 for fluxo in tabela_rotas.keys():
-                    msg = pp.criaPacoteTipo1(fluxo,2,local_ip) #@TODO: ALTERAR LINHA QUANDO TIVERMOS O FLOODING A COMEÇAR NO SERVIDOR
+                    metrica = tabela_rotas[fluxo][1]
+                    ip_origem = tabela_rotas[fluxo][0]
+                    msg = pp.criaPacoteTipo1(fluxo,metrica,ip_origem)
+                    print("Enviar rota do fluxo ",fluxo," para: ",ip)
                     conn.send(msg)
 
             elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
                 fluxo ,metrica, ip_origem = pp.extraiPacoteTipo1ou2(data)
+                print("[1] Recebi caminho mais curto do fluxo ",fluxo," com métrica " ,metrica, " de: ",ip)
 
-                if(tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
+                if(not(fluxo in tabela_rotas) or tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
+                    print("Caminho é ótimo, enviar confirmação.")
                     msg = pp.criaPacoteTipo2(fluxo,metrica,ip_origem)  # Confirmar que quer rota
                     conn.send(msg)
-                    tabela_rotas[fluxo] = (ip_origem,metrica,{}) # Registar Rota
+                    tabela_rotas[fluxo] = (ip,metrica,{}) # Registar Rota
 
                     for vizinho in vizinhos.keys(): # Avisar outros vizinhos
                         if (vizinho != ip):
-                            msg = pp.criaPacoteTipo1(fluxo,metrica+1,local_ip)
+                            print("Enviar rota do fluxo ", fluxo , " para: " , vizinho)
+                            msg = pp.criaPacoteTipo1(fluxo,(metrica+1),local_ip)
                             vizinhos[vizinho].send(msg)
 
             elif (tipo==2): # Se recebeu confirmação da rota
+                print("[2] Recebi confirmação do caminho mais curto")
                 fluxo, metrica, ip_origem = pp.extraiPacoteTipo1ou2(data)
                 aux = tabela_rotas[fluxo][2]
                 aux[ip] = False
                 tabela_rotas[fluxo] = (ip_origem,metrica,aux)
 
-        except: # Se vizinho "morreu"
+            elif (tipo==3): # Se recebeu alteração do estado da rota
+                fluxo, estado = pp.extraiPacoteTipo3(data)
+                tabela_rotas[fluxo][2][ip] = estado
+                msg = pp.criaPacoteTipo3(fluxo,estado)
+                next = tabela_rotas[fluxo][0]
+                vizinhos[next].send(msg)
+
+        except socket.error: # Se vizinho "morreu"
+            print(1)
             vizinhos.pop(ip)  # Remover da tabela de vizinhos
             for fluxo in tabela_rotas: # Para cada Fluxo
                 if (tabela_rotas[fluxo][0] == ip): # Verificar se fluxo vem do vizinho que "morreu"
                     for vizinho in vizinhos: # Pedir caminhos mais curtos aos restantes vizinhos
                         msg = pp.criaPacoteTipo0()
                         vizinhos[vizinho].send(msg)
-            #@TODO: Se rota vai para outros vizinho remover entrada da tablea {Destino : Estado}
+                elif(ip in tabela_rotas[fluxo][2]):
+                    tabela_rotas[fluxo][2].pop(ip)
             break # Parar Worker
+
+def server():
+    global vizinhos
+    fluxo = int(input())
+    msg = pp.criaPacoteTipo1(fluxo,1,"")
+    tabela_rotas[fluxo] = ("",1,{})
+    for vizinho in vizinhos:
+        vizinhos[vizinho].send(msg)
 
 
 def main():
@@ -101,14 +126,20 @@ def main():
     global tabela_rotas
     #Processar argumentos recebidos
     sys.argv.pop(0)
+    srv = False
+    if(re.search(r'^-S$',sys.argv[0])):
+        srv = True
+        sys.argv.pop(0)
     local_ip = sys.argv.pop(0)
     ips_vizinhos = sys.argv
-    tabela_rotas[1] = ("",13,{}) # @TODO: REMOVER LINHA QUADNO ACABAREM TESTES
 
     thread_tcp = threading.Thread(target=espera_conexoes, args=())
     thread_tcp.start()
     thread_vizinhos = threading.Thread(target=conecta_vizinhos,args=(ips_vizinhos,))
     thread_vizinhos.start()
+    if(srv):
+        thread_server = threading.Thread(target=server,args=())
+        thread_server.start()
 
     thread_tcp.join()
     thread_vizinhos.join()
