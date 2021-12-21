@@ -118,7 +118,7 @@ def worker(ip,):
 def server():
     global vizinhos
     fluxo = int(input())
-    msg = pp.criaPacoteTipo1(fluxo,1,"")
+    msg = pp.criaPacoteTipo1(fluxo,2)
     tabela_rotas[fluxo] = ("",1,{})
     for vizinho in vizinhos:
         vizinhos[vizinho].send(msg)
