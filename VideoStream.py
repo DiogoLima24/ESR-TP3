@@ -21,5 +21,9 @@ class VideoStream:
 	def frameNbr(self):
 		"""Get frame number."""
 		return self.frameNum
-	
+
+	def reset(self):
+		"""Return to beginning of file"""
+		self.file.seek(0)
+
 	

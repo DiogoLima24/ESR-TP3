@@ -10,6 +10,8 @@ PORT = 8080
 vizinhos = { } # { ip : conexao }
 tabela_rotas = {}  # { FLUXO : ( ORIGEM , METRICA , { DESTINO : ESTADO } ) } }
 local_ip = ''
+cliente = False
+clientSocket = None
 
 def espera_conexoes(): # Esperar por que outros nodos se conectem a mim
     global local_ip
@@ -55,11 +57,13 @@ def worker(ip,):
     global local_ip
     global vizinhos
     global tabela_rotas
+    global cliente
+    global clientSocket
 
     conn = vizinhos[ip]
     while(True):
         try:
-            data = conn.recv(512)
+            data = conn.recv(20482)
             tipo = pp.getTipo(data)
             if(tipo==0): # Se recebeu pedido de caminho mais curto
                 print("[0] Recebi pedido de caminhos mais curtos de: " , ip)
@@ -101,9 +105,30 @@ def worker(ip,):
                 print("Tabela Rotas: ",tabela_rotas)
 
                 next = tabela_rotas[fluxo][0]
-                if (next != ''):
-                    msg = pp.criaPacoteTipo3(fluxo,estado)
-                    vizinhos[next].send(msg)
+                if(next != ''):
+                    if (estado):
+                        msg = pp.criaPacoteTipo3(fluxo, estado)
+                        vizinhos[next].send(msg)
+                    elif(not estado):
+                        propagar = True
+                        for destino in tabela_rotas[fluxo][2]:
+                            if (tabela_rotas[fluxo][2][destino]):
+                                propagar = False
+                        if (propagar):
+                            msg = pp.criaPacoteTipo3(fluxo, estado)
+                            vizinhos[next].send(msg)
+
+            elif (tipo==4):
+                fluxo , pacote = pp.extraiPacoteTipo4(data)
+                print("[4] Recebi stream do fluxo ", fluxo, " de: ", ip)
+                if (cliente):
+                    clientSocket.sendto(pacote,(local_ip,25000))
+
+                for rota in tabela_rotas[fluxo][2]:
+                    if (tabela_rotas[fluxo][2][rota]):
+                        print("Reencaminhar para", rota)
+                        msg = pp.criaPacoteTipo4(fluxo, pacote)
+                        vizinhos[rota].send(msg)
 
         except: # Se vizinho "morreu"
             vizinhos.pop(ip)  # Remover da tabela de vizinhos
@@ -115,9 +140,9 @@ def worker(ip,):
                         msg = pp.criaPacoteTipo0()
                         vizinhos[vizinho].send(msg)
                 elif(ip in tabela_rotas[fluxo][2]):
-                    tabela_rotas[fluxo][2].pop(ip)
+                     tabela_rotas[fluxo][2].pop(ip)
             print("Tabela Rotas: ",tabela_rotas)
-            break # Parar Worker
+            break # Parar Worker"""
 
 def server():
     global vizinhos
@@ -129,7 +154,7 @@ def server():
         serverSocket.bind((local_ip, 25000))
         #serverSocket.settimeout(5)
         while(True):
-            data = serverSocket.recv(20481)
+            data = serverSocket.recv(20482)
             if (int(data[0]) == 0):
                 fluxo = int(data[1])
                 msg = pp.criaPacoteTipo1(fluxo,2)
@@ -137,6 +162,13 @@ def server():
                 for vizinho in vizinhos:
                    vizinhos[vizinho].send(msg)
 
+            if (int(data[0]) == 1):
+                fluxo = int(data[1])
+                data = data[2:]
+                for rota in tabela_rotas[fluxo][2]:
+                    if (tabela_rotas[fluxo][2][rota]):
+                        msg = pp.criaPacoteTipo4(fluxo,data)
+                        vizinhos[rota].send(msg)
     except:
         print("Didn't Bind\n")
 
@@ -144,11 +176,12 @@ def server():
 def client():
     global vizinhos
     global local_ip
+    global clientSocket
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
     # Bind the socket to the address using the RTP port
-    clientSocket.bind((local_ip, 25000))
+    clientSocket.bind((local_ip, 25001))
     # serverSocket.settimeout(5)
     while (True):
         data = clientSocket.recv(20481)
@@ -158,20 +191,27 @@ def client():
             next = tabela_rotas[fluxo][0]
             vizinhos[next].send(msg)
 
+        elif (int(data[0]) == 1):
+            fluxo = int(data[1])
+            msg = pp.criaPacoteTipo3(fluxo,False)
+            next = tabela_rotas[fluxo][0]
+            vizinhos[next].send(msg)
+
+
 
 def main():
     global PORT
     global local_ip
     global tabela_rotas
+    global cliente
     #Processar argumentos recebidos
     sys.argv.pop(0)
     srv = False
-    clnt = False
     if(re.search(r'^-S$',sys.argv[0])):
         srv = True
         sys.argv.pop(0)
     elif (re.search(r'^-C$', sys.argv[0])):
-        clnt = True
+        cliente = True
         sys.argv.pop(0)
     local_ip = sys.argv.pop(0)
     ips_vizinhos = sys.argv
@@ -183,7 +223,7 @@ def main():
     if(srv):
         thread_server = threading.Thread(target=server,args=())
         thread_server.start()
-    elif(clnt):
+    elif(cliente):
         thread_client = threading.Thread(target=client, args=())
         thread_client.start()
 

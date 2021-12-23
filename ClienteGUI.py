@@ -79,6 +79,7 @@ class ClienteGUI:
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
+
 		while True:
 			try:
 				data = self.rtpSocket.recv(20480)
@@ -94,9 +95,13 @@ class ClienteGUI:
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
+
+				self.s.sendto(bytes([1, self.fluxo]), (self.addr, 25001))
+
+
 				if self.playEvent.isSet(): 
 					break
-				
+
 				self.rtpSocket.shutdown(socket.SHUT_RDWR)
 				self.rtpSocket.close()
 				break
@@ -122,13 +127,16 @@ class ClienteGUI:
 		"""Open RTP socket binded to a specified port."""
 		# Create a new datagram socket to receive RTP packets from the server
 		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.rtpSocket.sendto(bytes([0,self.fluxo]) ,(self.addr,self.port) )
+		self.s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		self.s.sendto(bytes([0, self.fluxo]), (self.addr, 25001))
+
 		try:
 			# Bind the socket to the address using the RTP port
-			self.rtpSocket.bind((self.addr, self.port))
+			self.rtpSocket.bind((str(self.addr), 25000))
 			print('\nBind \n')
 		except:
-			pass
+			print("Didnt Bind\n")
+
 			#tkMessageBox.showwarning('Unable to Bind', 'Unable to bind PORT=%d' %self.rtpPort)
 
 	def handler(self):

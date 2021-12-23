@@ -26,13 +26,16 @@ class Servidor:
 					address = self.clientInfo['rtpAddr']
 					port = int(self.clientInfo['rtpPort'])
 					packet =  self.makeRtp(data, frameNumber)
-					packet = bytes([1]) + packet
+					fluxo = bytes([self.clientInfo['stream']])
+					packet = bytes([1]) + fluxo + packet
 					self.clientInfo['rtpSocket'].sendto(packet,(address,port))
 				except:
 					print("Connection Error")
 					print('-'*60)
 					traceback.print_exc(file=sys.stdout)
 					print('-'*60)
+			else:
+				self.clientInfo['videoStream'].reset()
 		# Close the RTP socket
 		self.clientInfo['rtpSocket'].close()
 		print("All done!")
@@ -69,6 +72,7 @@ class Servidor:
 			print("Using default video file ->  " + filename)
 
 		# videoStram
+		self.clientInfo['stream'] = fluxo
 		self.clientInfo['videoStream'] = VideoStream(filename)
 		# socket
 		self.clientInfo['rtpPort'] = 25000

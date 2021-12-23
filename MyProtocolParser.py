@@ -18,7 +18,7 @@ def criaPacoteTipo2(fluxo,metrica): # Confirmar melhor rota
     pacote = tipo + fluxo + metrica
     return pacote
 
-def criaPacoteTipo3(fluxo,estado):
+def criaPacoteTipo3(fluxo,estado): # Alterar estado da rota
     tipo = bytes([3])
     fluxo = bytes([fluxo])
     if estado:
@@ -28,6 +28,11 @@ def criaPacoteTipo3(fluxo,estado):
     pacote = tipo + fluxo + e
     return pacote
 
+def criaPacoteTipo4(fluxo,dados): # Reencaminhar pacote da stream
+    tipo = bytes([4])
+    fluxo = bytes([fluxo])
+    pacote = tipo + fluxo + dados
+    return pacote
 
 # Extrair Conteudo dos Pacotes
 def getTipo(pacote): # Consultar o tipo da mensagem
@@ -44,3 +49,9 @@ def extraiPacoteTipo3(pacote):
     fluxo = int(pacote[1])
     estado = (int(pacote[2]) == 1)
     return (fluxo, estado)
+
+# Extrair conteudo dos Pacotes de tipo 4
+def extraiPacoteTipo4(pacote):
+    fluxo = int(pacote[1])
+    data = pacote[2:]
+    return (fluxo, data)
