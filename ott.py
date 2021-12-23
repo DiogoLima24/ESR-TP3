@@ -12,6 +12,7 @@ tabela_rotas = {}  # { FLUXO : ( ORIGEM , METRICA , { DESTINO : ESTADO } ) } }
 local_ip = ''
 cliente = False
 clientSocket = None
+escuta = False
 
 def espera_conexoes(): # Esperar por que outros nodos se conectem a mim
     global local_ip
@@ -59,6 +60,7 @@ def worker(ip,):
     global tabela_rotas
     global cliente
     global clientSocket
+    global escuta
 
     conn = vizinhos[ip]
     while(True):
@@ -74,12 +76,12 @@ def worker(ip,):
                     conn.send(msg)
 
             elif (tipo==1): # Se recebeu caminho mais curto de um vizinho
-                fluxo ,metrica = pp.extraiPacoteTipo1ou2(data)
+                fluxo ,metrica = pp.extraiPacoteTipo1(data)
                 print("[1] Recebi caminho mais curto do fluxo ",fluxo," com métrica " ,metrica, " de: ",ip)
 
                 if(not(fluxo in tabela_rotas) or tabela_rotas[fluxo][1] > metrica): # Se caminho é melhor que o atual
                     print("Caminho é ótimo, enviar confirmação.")
-                    msg = pp.criaPacoteTipo2(fluxo,metrica)  # Confirmar que quer rota
+                    msg = pp.criaPacoteTipo2(fluxo,escuta)  # Confirmar que quer rota
                     conn.send(msg)
                     tabela_rotas[fluxo] = (ip,metrica,{}) # Registar Rota
                     print("Tabela Rotas: ",tabela_rotas)
@@ -91,15 +93,21 @@ def worker(ip,):
                             vizinhos[vizinho].send(msg)
                 else:
                     print("Já tenho caminho melhor..")
+                    print("Tabela Rotas: ", tabela_rotas)
 
             elif (tipo==2): # Se recebeu confirmação da rota
                 print("[2] Recebi confirmação do caminho mais curto")
-                fluxo, metrica = pp.extraiPacoteTipo1ou2(data)
-                tabela_rotas[fluxo][2][ip] = False
+                fluxo, estado = pp.extraiPacoteTipo2ou3(data)
+                tabela_rotas[fluxo][2][ip] = estado
+                if(estado):
+                    msg = pp.criaPacoteTipo3(fluxo,estado)
+                    escuta = True
+                    next = tabela_rotas[fluxo][0]
+                    vizinhos[next].send(msg)
                 print("Tabela Rotas: ", tabela_rotas)
 
             elif (tipo==3): # Se recebeu alteração do estado da rota
-                fluxo, estado = pp.extraiPacoteTipo3(data)
+                fluxo, estado = pp.extraiPacoteTipo2ou3(data)
                 print("[3] Recebi alteração do estado do fluxo ",fluxo," para " ,estado, " de: ",ip)
                 tabela_rotas[fluxo][2][ip] = estado
                 print("Tabela Rotas: ",tabela_rotas)
@@ -108,6 +116,7 @@ def worker(ip,):
                 if(next != ''):
                     if (estado):
                         msg = pp.criaPacoteTipo3(fluxo, estado)
+                        escuta = True
                         vizinhos[next].send(msg)
                     elif(not estado):
                         propagar = True
@@ -116,6 +125,7 @@ def worker(ip,):
                                 propagar = False
                         if (propagar):
                             msg = pp.criaPacoteTipo3(fluxo, estado)
+                            escuta = False
                             vizinhos[next].send(msg)
 
             elif (tipo==4):
@@ -139,6 +149,7 @@ def worker(ip,):
                     for vizinho in vizinhos: # Pedir caminhos mais curtos aos restantes vizinhos
                         msg = pp.criaPacoteTipo0()
                         vizinhos[vizinho].send(msg)
+
                 elif(ip in tabela_rotas[fluxo][2]):
                      tabela_rotas[fluxo][2].pop(ip)
             print("Tabela Rotas: ",tabela_rotas)
@@ -177,6 +188,7 @@ def client():
     global vizinhos
     global local_ip
     global clientSocket
+    global escuta
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
@@ -188,13 +200,16 @@ def client():
         if (int(data[0]) == 0):
             fluxo = int(data[1])
             msg= pp.criaPacoteTipo3(fluxo,True)
+            escuta = True
             next = tabela_rotas[fluxo][0]
             vizinhos[next].send(msg)
 
         elif (int(data[0]) == 1):
             fluxo = int(data[1])
             msg = pp.criaPacoteTipo3(fluxo,False)
+            escuta = False
             next = tabela_rotas[fluxo][0]
+            print(next)
             vizinhos[next].send(msg)
 
 

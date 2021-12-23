@@ -11,11 +11,14 @@ def criaPacoteTipo1(fluxo,metrica): # Enviar Caminho Mais Curto
     pacote = tipo + fluxo + metrica
     return pacote
 
-def criaPacoteTipo2(fluxo,metrica): # Confirmar melhor rota
+def criaPacoteTipo2(fluxo,estado): # Confirmar melhor rota
     tipo = bytes([2])
     fluxo = bytes([fluxo])
-    metrica = bytes([metrica])
-    pacote = tipo + fluxo + metrica
+    if estado:
+        e = bytes([1])
+    else:
+        e = bytes([0])
+    pacote = tipo + fluxo + e
     return pacote
 
 def criaPacoteTipo3(fluxo,estado): # Alterar estado da rota
@@ -39,13 +42,13 @@ def getTipo(pacote): # Consultar o tipo da mensagem
     return int(pacote[0])
 
 # Extrair conteudo dos Pacotes tipo 1 ou tipo 2
-def extraiPacoteTipo1ou2(pacote):
+def extraiPacoteTipo1(pacote):
     fluxo = int(pacote[1])
     metrica = int(pacote[2])
     return (fluxo , metrica)
 
 # Extrair conteudo dos Pacotes de tipo 3
-def extraiPacoteTipo3(pacote):
+def extraiPacoteTipo2ou3(pacote):
     fluxo = int(pacote[1])
     estado = (int(pacote[2]) == 1)
     return (fluxo, estado)
